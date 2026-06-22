@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Revival | Alpha Core Engine</title>
+    
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+        
+        body {
+            background: radial-gradient(circle at 50% 50%, #1a080b 0%, #08080b 100%);
+            color: #eeeeee;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* ================= TELA DE LOGIN ADM ================= */
+        .login-screen {
+            background: rgba(14, 14, 18, 0.95);
+            backdrop-filter: blur(15px);
+            padding: 45px 35px;
+            border-radius: 20px;
+            border: 2px solid rgba(255, 36, 66, 0.25);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 36, 66, 0.1);
+            width: 100%;
+            max-width: 360px;
+            text-align: center;
+            z-index: 10;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .login-screen h2 {
+            font-size: 2rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #ffffff 30%, #ff2e4c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 25px;
+        }
+
+        .input-group { margin-bottom: 18px; text-align: left; }
+        .input-group label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #888899; margin-left: 5px; display: block; margin-bottom: 5px; }
+
+        input, select, textarea {
+            width: 100%; padding: 14px 16px; background: #13131a; border: 1px solid #232330; border-radius: 10px; color: #ffffff; font-size: 0.95rem; transition: all 0.25s ease;
+        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #ff2e4c; box-shadow: 0 0 12px rgba(255, 36, 66, 0.25); }
+
+        .btn-auth {
+            width: 100%; padding: 15px; margin-top: 15px; border: none; border-radius: 10px; cursor: pointer; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+            background: linear-gradient(135deg, #ff2e4c 0%, #bd102c 100%); color: #ffffff; box-shadow: 0 6px 20px rgba(255, 46, 76, 0.35); transition: all 0.2s ease;
+        }
+        .btn-auth:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .login-spinner { display: none; width: 35px; height: 35px; border: 3px solid transparent; border-top-color: #ff2e4c; border-radius: 50%; animation: spin 1s linear infinite; margin: 15px auto 0; }
+        #login-msg { margin-top: 15px; font-size: 0.9rem; font-weight: 600; color: #ff4a6b; }
+
+        /* ================= PAINEL CORE EXTENDED ================= */
+        .admin-panel {
+            display: none; width: 100vw; height: 100vh; background: #09090c; opacity: 0; transition: opacity 0.5s ease;
+        }
+
+        .sidebar { width: 280px; background: #0e0e12; border-right: 2px solid rgba(255, 36, 66, 0.15); padding: 30px 20px; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 1.3rem; color: #ff2e4c; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 35px; text-align: center; font-weight: 900; }
+
+        .nav-btn {
+            background: transparent; border: none; color: #7c7c8c; padding: 14px 18px; text-align: left; font-size: 0.95rem; font-weight: 600; cursor: pointer; border-radius: 8px; margin-bottom: 8px; transition: all 0.3s ease;
+        }
+        .nav-btn:hover, .nav-btn.active { color: #ffffff; background: linear-gradient(90deg, rgba(255, 46, 76, 0.15), transparent); border-left: 4px solid #ff2e4c; }
+
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: tabFade 0.3s ease; }
+        h1 { font-size: 1.8rem; margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; color: #fff; }
+
+        /* Módulos & Cards */
+        .dash-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 18px; margin-bottom: 30px; }
+        .card { background: #12121a; border: 1px solid #1f1f2e; border-radius: 12px; padding: 22px; border-left: 4px solid #5a5a6a; }
+        .card h3 { font-size: 0.8rem; color: #7c7c8c; text-transform: uppercase; margin-bottom: 8px; }
+        .card .value { font-size: 2.1rem; font-weight: 800; }
+        .card.total { border-left-color: #ff2e4c; }
+        .card.online { border-left-color: #00ff87; }
+        .card.gold { border-left-color: #ffd700; }
+
+        .addon-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
+        .addon-box { background: #12121a; border: 1px solid #1f1f2e; border-radius: 12px; padding: 20px; }
+        .addon-box h4 { color: #ff2e4c; margin-bottom: 15px; text-transform: uppercase; font-size: 0.9rem; }
+        
+        .search-bar { width: 100%; max-width: 300px; margin-bottom: 15px; padding: 10px; font-size: 0.85rem; }
+
+        /* Tabelas */
+        .table-container { background: #12121a; border: 1px solid #1f1f2e; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 14px 18px; border-bottom: 1px solid #1f1f2e; font-size: 0.9rem; }
+        th { background: #171724; color: #ff2e4c; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; }
+        
+        .table-input { width: 80px; background: #191924; border: 1px solid #2d2d40; color: white; padding: 6px; border-radius: 6px; text-align: center; }
+        .table-input:focus { border-color: #ff2e4c; }
+
+        .btn { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; text-transform: uppercase; font-size: 0.75rem; transition: 0.2s; }
+        .btn-save { background: #00ff87; color: #09090c; }
+        .btn-ban { background: #ff2e4c; color: white; }
+        .btn-unban { background: #6c757d; color: white; }
+        .btn-global { background: #ff2e4c; color: white; margin-top: 10px; width: 100%; padding: 12px; }
+
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; }
+        .badge.online { background: rgba(0, 255, 135, 0.1); color: #00ff87; }
+        .badge.offline { background: rgba(124, 124, 140, 0.1); color: #9a9ab0; }
+        .badge.ban { background: rgba(255, 46, 76, 0.1); color: #ff2e4c; }
+
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes tabFade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+
+    <!-- ================= CAIXA DE LOGIN MASTER SEGURO ================= -->
+    <div class="login-screen" id="login-block">
+        <h2>Acesso Master</h2>
+        <div class="input-group">
+            <label for="adm-email">E-mail Administrativo</label>
+            <input type="email" id="adm-email" placeholder="admin@revival.com" value="nmarilene276@gmail.com">
+        </div>
+        <div class="input-group">
+            <label for="adm-password">Chave de Segurança</label>
+            <input type="password" id="adm-password" placeholder="••••••••">
+        </div>
+        <button class="btn-auth" id="btn-login-adm" onclick="loginAdmin()">Autenticar Painel</button>
+        <div class="login-spinner" id="login-spinner"></div>
+        <p id="login-msg"></p>
+    </div>
+
+    <!-- ================= PAINEL CORE EXTENDED ================= -->
+    <div class="admin-panel" id="admin-block">
+        <div class="sidebar">
+            <h2>Revival Engine</h2>
+            <button class="nav-btn active" onclick="switchTab('dashboard')">Dashboard Principal</button>
+            <button class="nav-btn" onclick="switchTab('contas')">Gerenciar Contas</button>
+            <button class="nav-btn" onclick="switchTab('banimentos')">Lista Negra (Ban)</button>
+            <button class="nav-btn" onclick="switchTab('eventos')">Comandos Globais</button>
+        </div>
+
+        <div class="main-content">
+            <!-- ABA 1: Dashboard -->
+            <div id="dashboard" class="tab-content active">
+                <h1>Métricas Gerais do Servidor</h1>
+                <div class="dash-cards">
+                    <div class="card total"><h3>Total de Contas</h3><div class="value" id="total-accounts">0</div></div>
+                    <div class="card online"><h3>Jogadores Ativos</h3><div class="value" id="online-accounts">0</div></div>
+                    <div class="card"><h3>Jogadores Offline</h3><div class="value" id="offline-accounts">0</div></div>
+                    <div class="card gold"><h3>Fortuna Total (Ouro)</h3><div class="value" id="total-gold">0</div></div>
+                </div>
+
+                <div class="addon-panel">
+                    <div class="addon-box">
+                        <h4>🏆 Top 1 do Servidor</h4>
+                        <p id="top-player-info">Calculando maior nível...</p>
+                    </div>
+                    <div class="addon-box">
+                        <h4>📡 Status do Sistema</h4>
+                        <p style="color: #00ff87;">● Banco de Dados Conectado</p>
+                        <p style="margin-top: 5px; color: #7c7c8c;">Versão da Engine: v2.8.4 Alpha</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 2: Contas -->
+            <div id="contas" class="tab-content">
+                <h1>Gerenciamento de Economia</h1>
+                <input type="text" id="search-input" class="search-bar" placeholder="🔍 Pesquisar por Nick..." oninput="filterPlayers()">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Nick</th><th>Nível</th><th>Moedas</th><th>Diamantes</th><th>Status</th><th>Ações</th></tr>
+                        </thead>
+                        <tbody id="accounts-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 3: Banimentos -->
+            <div id="banimentos" class="tab-content">
+                <h1>Controle de Banimentos e Segurança</h1>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr><th>Nick</th><th>Status Atual</th><th>Controle Judicial</th></tr>
+                        </thead>
+                        <tbody id="ban-table-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ABA 4: Comandos Globais -->
+            <div id="eventos" class="tab-content">
+                <h1>Console de Eventos Globais</h1>
+                <div class="addon-box" style="width: 100%; max-width: 500px;">
+                    <h4>📢 Enviar Alerta Global (In-Game)</h4>
+                    <textarea id="global-msg-text" rows="3" placeholder="Digite uma mensagem para todos os players..."></textarea>
+                    <button class="btn btn-global" onclick="sendGlobalAlert()">Disparar Mensagem</button>
+                    
+                    <h4 style="margin-top: 30px; color: #ff4a6b;">☢️ Zona de Perigo</h4>
+                    <button class="btn" style="background: #bd102c; color: white; width: 100%; padding: 12px; margin-top: 5px;" onclick="resetServerEconomy()">Zerar Ouro de Todo Mundo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyDPpFWpIsMasbuTLSSePUI3Odmrl7vh978",
+        authDomain: "project-revival-29e2b.firebaseapp.com",
+        databaseURL: "https://project-revival-29e2b-default-rtdb.firebaseio.com",
+        projectId: "project-revival-29e2b",
+        storageBucket: "project-revival-29e2b.firebasestorage.app",
+        messagingSenderId: "203714336706",
+        appId: "1:203714336706:web:54386a637b4506d483685b",
+        measurementId: "G-RBJPGXEMZD"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    // TRAVA MASTER DE E-MAIL SOLICITADA
+    const EMAIL_AUTORIZADO = "nmarilene276@gmail.com";
+
+    function loginAdmin() {
+        const email = document.getElementById('adm-email').value.trim();
+        const pass = document.getElementById('adm-password').value;
+        const msg = document.getElementById('login-msg');
+        const btn = document.getElementById('btn-login-adm');
+        const spinner = document.getElementById('login-spinner');
+
+        msg.innerText = "";
+
+        if(email !== EMAIL_AUTORIZADO) {
+            msg.innerText = "Acesso Negado: Usuário sem privilégios de Admin.";
+            return;
+        }
+
+        btn.style.display = 'none';
+        spinner.style.display = 'block';
+
+        auth.signInWithEmailAndPassword(email, pass)
+            .then((userCredential) => {
+                document.getElementById('login-block').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('login-block').style.display = 'none';
+                    document.body.style.display = 'block';
+                    const panel = document.getElementById('admin-block');
+                    panel.style.display = 'flex';
+                    setTimeout(() => panel.style.opacity = '1', 50);
+                    initRealtimeDatabase();
+                }, 500);
+            })
+            .catch(err => {
+                btn.style.display = 'block';
+                spinner.style.display = 'none';
+                msg.innerText = "Erro: " + err.message;
+            });
+    }
+
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        event.currentTarget.classList.add('active');
+    }
+
+    function initRealtimeDatabase() {
+        db.ref('users').on('value', (snapshot) => {
+            const users = snapshot.val() || {};
+            let total = 0, online = 0, offline = 0, totalGold = 0;
+            let topLvl = -1, topPlayer = "Nenhum";
+
+            const accountsTable = document.getElementById('accounts-table-body');
+            const banTable = document.getElementById('ban-table-body');
+            
+            accountsTable.innerHTML = '';
+            banTable.innerHTML = '';
+
+            for (let userId in users) {
+                const user = users[userId];
+                total++;
+
+                if (user.status === 'online') online++;
+                else offline++;
+
+                const gold = parseInt(user.moedas || 0);
+                totalGold += gold;
+
+                const lvl = parseInt(user.nivel || 1);
+                if (lvl > topLvl) {
+                    topLvl = lvl;
+                    topPlayer = user.nick || "Sem Nick";
+                }
+
+                const row = document.createElement('tr');
+                row.setAttribute('data-nick', (user.nick || '').toLowerCase());
+                row.innerHTML = `
+                    <td><strong>${user.nick || 'Sem Nick'}</strong></td>
+                    <td><input type="number" class="table-input" id="lvl-${userId}" value="${lvl}"></td>
+                    <td><input type="number" class="table-input" id="gold-${userId}" value="${gold}"></td>
+                    <td><input type="number" class="table-input" id="dia-${userId}" value="${user.diamantes || 0}"></td>
+                    <td><span class="badge ${user.status === 'online' ? 'online' : 'offline'}">${user.status || 'offline'}</span></td>
+                    <td><button class="btn btn-save" onclick="updateUserValues('${userId}')">Salvar</button></td>
+                `;
+                accountsTable.appendChild(row);
+
+                const banRow = document.createElement('tr');
+                banRow.innerHTML = `
+                    <td><strong>${user.nick || 'Sem Nick'}</strong></td>
+                    <td>${user.banido ? '<span class="badge ban">BANIDO</span>' : '<span class="badge offline">CONTA ATIVA</span>'}</td>
+                    <td>
+                        ${user.banido ? 
+                            `<button class="btn btn-unban" onclick="setBanStatus('${userId}', false)">Revogar Ban</button>` : 
+                            `<button class="btn btn-ban" onclick="setBanStatus('${userId}', true)">Aplicar Ban</button>`
+                        }
+                    </td>
+                `;
+                banTable.appendChild(banRow);
+            }
+
+            document.getElementById('total-accounts').innerText = total;
+            document.getElementById('online-accounts').innerText = online;
+            document.getElementById('offline-accounts').innerText = offline;
+            document.getElementById('total-gold').innerText = totalGold.toLocaleString();
+            document.getElementById('top-player-info').innerHTML = `👑 <strong>${topPlayer}</strong> (Nível ${topLvl})`;
+        });
+    }
+
+    function filterPlayers() {
+        const query = document.getElementById('search-input').value.toLowerCase();
+        const rows = document.querySelectorAll('#accounts-table-body tr');
+        rows.forEach(row => {
+            const nick = row.getAttribute('data-nick');
+            row.style.display = nick.includes(query) ? '' : 'none';
+        });
+    }
+
+    function updateUserValues(userId) {
+        const nivel = parseInt(document.getElementById(`lvl-${userId}`).value);
+        const moedas = parseInt(document.getElementById(`gold-${userId}`).value);
+        const diamantes = parseInt(document.getElementById(`dia-${userId}`).value);
+
+        db.ref('users/' + userId).update({ nivel, moedas, diamantes })
+            .then(() => alert("Dados salvos!"))
+            .catch(err => alert("Erro: " + err.message));
+    }
+
+    function setBanStatus(userId, status) {
+        if (confirm(status ? "Deseja banir o jogador?" : "Deseja desbanir o jogador?")) {
+            db.ref('users/' + userId).update({ banido: status });
+        }
+    }
+
+    function sendGlobalAlert() {
+        const texto = document.getElementById('global-msg-text').value;
+        if(!texto) return;
+        db.ref('global_alerts').set({ message: texto, timestamp: Date.now() }).then(() => {
+            alert("Alerta enviado!");
+            document.getElementById('global-msg-text').value = "";
+        });
+    }
+
+    function resetServerEconomy() {
+        if(confirm("Zerar ouro de TODOS os players?")) {
+            db.ref('users').once('value', (snapshot) => {
+                const users = snapshot.val();
+                let updates = {};
+                for(let userId in users) { updates[`users/${userId}/moedas`] = 0; }
+                db.ref().update(updates).then(() => alert("Economia resetada!"));
+            });
+        }
+    }
+</script>
+</body>
+</html>
